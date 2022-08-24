@@ -1,8 +1,9 @@
+
 #!/usr/bin/python3
 import os
 import psycopg2
 
-DEBUG = False
+DEBUG = bool(os.getenv('DEBUG') or False) # any nonempty env
 DBHOST = os.getenv('DBHOST') or '127.0.0.1'
 DBPORT = os.getenv('DBPORT') or '5432'
 DBUSER = os.getenv('DBUSER') or 'postgres'
@@ -11,9 +12,8 @@ DEFAULT_HORIZON = 21
 BATCHSIZE = int(os.getenv('BATCHSIZE') or '10000')
 
 CUSTOM_HORIZON = """
-# converyer_id, horizon -  keep horison in days.
-# you can пока добавлять прямо сюда. пустьіе строки и строки с решеткой считаются за комментарий и не обрабатьіваются. 
-# TODO - хранить на стороне, в бд например или во внешнем файле. и можно написать нормальньій парсер.
+# converyer_id, horizon -  keep horison in days. you can add  custom keep horizon per converyer_id. empty strings and strings with # - will be excluded.
+# TODO - to store this part configuration aside of script (external file, db and make normal parser)
 123,  21
 456,  7
 789,  14
@@ -47,6 +47,8 @@ def generate_clean_query(tablename, pk, ts_field, ts_in_millisec=False, special_
      DELETE FROM {tablename}
       USING  cte
       WHERE ( {pk_wherejoin_tab} ) = ( {pk_wherejoin_cte} );"""
+    if DEBUG:
+        print(f"for {tablename} generated SQL:\n {query}")
     return query
 
 
@@ -71,7 +73,7 @@ def clean_cp(dbname):
         # do not forget add coma in single-field pk tuple: ('id',)
         {'tablename': 'tasks_archive', 'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': False,
          'special_horizon': True},
-        {'tablename': 'stream_counters', 'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': False,
+        {'tablename': 'stream_counters', 'pk': ('id',), 'ts_field': 'ts', 'ts_in_millisec': False,
          'special_horizon': True},
         {'tablename': 'tasks_history', 'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': True,
          'special_horizon': True}]
@@ -144,3 +146,4 @@ if __name__ == '__main__':
     ]
     for table in tables:
         general_clean_table(**table)
+
