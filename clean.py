@@ -71,12 +71,10 @@ def clean_cp(dbname):
 
     cp_tables = [
         # do not forget add coma in single-field pk tuple: ('id',)
-        {'tablename': 'tasks_archive', 'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': False,
-         'special_horizon': True},
-        {'tablename': 'stream_counters', 'pk': ('id',), 'ts_field': 'ts', 'ts_in_millisec': False,
-         'special_horizon': True},
-        {'tablename': 'tasks_history', 'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': True,
-         'special_horizon': True}]
+        {'tablename': 'tasks_archive',   'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': False, 'special_horizon': True},
+        {'tablename': 'stream_counters', 'pk': ('id',), 'ts_field': 'ts',          'ts_in_millisec': False, 'special_horizon': True},
+        {'tablename': 'tasks_history',   'pk': ('id',), 'ts_field': 'create_time', 'ts_in_millisec': True,  'special_horizon': True}
+    ]
 
     for job in cp_tables:
         tablename = job['tablename']
@@ -132,17 +130,11 @@ if __name__ == '__main__':
         clean_cp(db)
 
     tables = [
-        {'dbname': 'conveyor_statistics', 'tablename': 'conveyor_copy_rpc_logic_statistics',
-         'pk': ('from_conveyor_id', 'to_conveyor_id', 'ts', 'from_node_id'), 'ts_field': 'ts', 'ts_in_millisec': False,
-         'special_horizon': False},
-        {'dbname': 'conveyor_statistics', 'tablename': 'conveyor_logic_statistics',
-         'pk': ('conveyor_id', 'node_id', 'ts'), 'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
-        {'dbname': 'conveyor', 'tablename': 'conveyor_billing', 'pk': ('conveyor_id', 'user_id', 'ts'),
-         'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
-        {'dbname': 'conveyor', 'tablename': 'cce_exec_time', 'pk': ('conveyor_id', 'node_id', 'ts'), 'ts_field': 'ts',
-         'ts_in_millisec': False, 'special_horizon': False},
-        {'dbname': 'conveyor', 'tablename': 'conveyor_called_timers', 'pk': ('conveyor_id', 'node_id', 'ts'),
-         'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
+        {'dbname': 'conveyor_statistics', 'tablename': 'conveyor_copy_rpc_logic_statistics', 'pk': ('from_conveyor_id', 'to_conveyor_id', 'ts', 'from_node_id'), 'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
+        {'dbname': 'conveyor_statistics', 'tablename': 'conveyor_logic_statistics',          'pk': ('conveyor_id', 'node_id', 'ts'),                             'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
+        {'dbname': 'conveyor',            'tablename': 'conveyor_billing',                   'pk': ('conveyor_id', 'user_id', 'ts'),                             'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
+        {'dbname': 'conveyor',            'tablename': 'cce_exec_time',                      'pk': ('conveyor_id', 'node_id', 'ts'),                             'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
+        {'dbname': 'conveyor',            'tablename': 'conveyor_called_timers',             'pk': ('conveyor_id', 'node_id', 'ts'),                             'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},
     ]
     for table in tables:
         general_clean_table(**table)
