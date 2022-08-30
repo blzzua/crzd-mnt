@@ -4,6 +4,8 @@
 requires the python3-psycopg2 library.
 setting via editing the clean.py file, or pass the ENV for connect db: DBHOST DBPORT DBUSER DBPASS
 
+Please after configuration, disable DRYRUN mode via set DRYRUN='false' value. 
+
 verbose possible:
 `DEBUG=1`  - any nonempty value = True, empty or  absence of a variable - will be perceived as False.
 `BATCHSIZE` - batch size
