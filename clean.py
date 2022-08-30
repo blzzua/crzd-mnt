@@ -1,8 +1,9 @@
-
 #!/usr/bin/python3
 import os
 import psycopg2
+import time
 
+DRYRUN = bool(False if os.getenv('DRYRUN') == 'false' else True) # empty or any value except 'false' mean True. You must be deliberately enable this option to work.
 DEBUG = bool(os.getenv('DEBUG') or False) # any nonempty env
 DBHOST = os.getenv('DBHOST') or '127.0.0.1'
 DBPORT = os.getenv('DBPORT') or '5432'
@@ -18,6 +19,7 @@ CUSTOM_HORIZON = """
 456,  7
 789,  14
 """
+
 
 def generate_clean_query(tablename, pk, ts_field, ts_in_millisec=False, special_horizon=False):
     pk_cte_resultset = ', '.join(pk)
@@ -47,8 +49,12 @@ def generate_clean_query(tablename, pk, ts_field, ts_in_millisec=False, special_
      DELETE FROM {tablename}
       USING  cte
       WHERE ( {pk_wherejoin_tab} ) = ( {pk_wherejoin_cte} );"""
-    if DEBUG:
-        print(f"for {tablename} generated SQL:\n {query}")
+    if DEBUG or DRYRUN:
+        msg = "\n# DRY RUN MODE. " if DRYRUN else ""
+        msg = msg + f"for {tablename} generated SQL:\n {query}"
+        print(msg)
+    if DRYRUN:
+        time.sleep(0.2)
     return query
 
 
@@ -62,12 +68,13 @@ def clean_cp(dbname):
     cur = conn.cursor()
 
     # horizon_list
-    cur.execute(f'create temporary table horizon (conveyor_id integer, horizon_days integer);')
-    custom_horizon_list = [tuple(map(int, line.split(','))) for line in CUSTOM_HORIZON.splitlines() if
-                           line and '#' not in line]
-    for params in custom_horizon_list:
-        cur.execute('insert into horizon values(%s, %s);', params)
-    conn.commit()
+    custom_horizon_list = [tuple(map(int, line.split(','))) for line in CUSTOM_HORIZON.splitlines() 
+                           if line and '#' not in line]
+    if not DRYRUN:
+        cur.execute(f'create temporary table horizon (conveyor_id integer, horizon_days integer);')
+        for params in custom_horizon_list:
+            cur.execute('insert into horizon values(%s, %s);', params)
+            conn.commit()
 
     cp_tables = [
         # do not forget add coma in single-field pk tuple: ('id',)
@@ -85,17 +92,18 @@ def clean_cp(dbname):
         query = generate_clean_query(tablename=tablename, pk=pk, ts_field=ts_field, ts_in_millisec=ts_in_millisec,
                                      special_horizon=special_horizon)
         total_rc = 0
-        while True:
-            cur.execute(query)
-            conn.commit()
-            total_rc += cur.rowcount
-            if cur.rowcount < BATCHSIZE:
-                # done 
-                print(f"{dbname} {tablename} deleted: {total_rc} rows", flush=True)
-                break
-            elif DEBUG:
-                print(f"DEBUG {dbname} {tablename} deleted: {cur.rowcount} rows, total {total_rc}", flush=True)
-    # db finished
+        if not DRYRUN:
+            while True:
+                cur.execute(query)
+                conn.commit()
+                total_rc += cur.rowcount
+                if cur.rowcount < BATCHSIZE:
+                    # done 
+                    print(f"{dbname} {tablename} deleted: {total_rc} rows", flush=True)
+                    break
+                elif DEBUG:
+                    print(f"DEBUG {dbname} {tablename} deleted: {cur.rowcount} rows, total {total_rc}", flush=True)
+        # db finished
     conn.close()
 
 
@@ -111,17 +119,18 @@ def general_clean_table(dbname, tablename, pk, ts_field, ts_in_millisec=False, s
     query = generate_clean_query(tablename=tablename, pk=pk, ts_field=ts_field, ts_in_millisec=ts_in_millisec,
                                  special_horizon=special_horizon)
     total_rc = 0
-    while True:
-        cur.execute(query)
-        conn.commit()
-        total_rc += cur.rowcount
-        if cur.rowcount < BATCHSIZE:
-            # done 
-            print(f"{dbname} {tablename} deleted: {total_rc} rows", flush=True)
-            break
-        elif DEBUG:
-            print(f"DEBUG {dbname} {tablename} deleted: {cur.rowcount} rows, total {total_rc}", flush=True)
-    # db finished
+    if not DRYRUN:
+        while True:
+            cur.execute(query)
+            conn.commit()
+            total_rc += cur.rowcount
+            if cur.rowcount < BATCHSIZE:
+                # done 
+                print(f"{dbname} {tablename} deleted: {total_rc} rows", flush=True)
+                break
+            elif DEBUG:
+                print(f"DEBUG {dbname} {tablename} deleted: {cur.rowcount} rows, total {total_rc}", flush=True)
+        # db finished
     conn.close()
 
 
@@ -138,4 +147,8 @@ if __name__ == '__main__':
     ]
     for table in tables:
         general_clean_table(**table)
+        
+    if DRYRUN:
+        print('='*80)
+        print('Clean ran in DRYRUN-mode. You can disable dryrun mode via passing env variable DRYRUN="false"')
 
