@@ -2,24 +2,23 @@
 import os
 import psycopg2
 import time
+from configparser import ConfigParser
+from datetime import date, timedelta
+from itertools import starmap
+
 
 DRYRUN = bool(False if os.getenv('DRYRUN') == 'false' else True) # empty or any value except 'false' mean True. You must be deliberately enable this option to work.
 DEBUG = bool(os.getenv('DEBUG') or False) # any nonempty env
-DBHOST = os.getenv('DBHOST') or '127.0.0.1'
-DBPORT = os.getenv('DBPORT') or '5432'
-DBUSER = os.getenv('DBUSER') or 'postgres'
-DBPASS = os.getenv('DBPASS') or 'password'
-DEFAULT_HORIZON = 21
-BATCHSIZE = int(os.getenv('BATCHSIZE') or '10000')
 
-CUSTOM_HORIZON = """
-# converyer_id, horizon -  keep horison in days. you can add  custom keep horizon per converyer_id. empty strings and strings with # - will be excluded.
-# TODO - to store this part configuration aside of script (external file, db and make normal parser)
-123,  21
-456,  7
-789,  14
-"""
-
+config = ConfigParser()
+config.read('config.ini')
+# read config as globals:
+DBHOST = os.getenv('DBHOST') or config.get('main', 'DBHOST')
+DBPORT = int(os.getenv('DBPORT') or config.get('main', 'DBPORT'))
+DBUSER = os.getenv('DBUSER') or config.get('main', 'DBUSER')
+DBPASS = os.getenv('DBPASS') or config.get('main', 'DBPASS')
+BATCHSIZE = int(os.getenv('BATCHSIZE') or config.get('main', 'BATCHSIZE'))
+DEFAULT_HORIZON = config.get('main', 'DEFAULT_HORIZON')
 
 def generate_clean_query(tablename, pk, ts_field, ts_in_millisec=False, special_horizon=False):
     pk_cte_resultset = ', '.join(pk)
@@ -61,15 +60,21 @@ def generate_clean_query(tablename, pk, ts_field, ts_in_millisec=False, special_
 def clean_cp(dbname):
     conn = psycopg2.connect(
         host=DBHOST,
-        port=int(DBPORT),
+        port=DBPORT,
         database=dbname,  # for every db
         user=DBUSER,
         password=DBPASS)
     cur = conn.cursor()
 
     # horizon_list
-    custom_horizon_list = [tuple(map(int, line.split(','))) for line in CUSTOM_HORIZON.splitlines() 
-                           if line and '#' not in line]
+    custom_horizon_list = starmap(lambda conv_id, days: (int(conv_id), int(days)), config.items('custom_horizon'))
+    if DEBUG:
+        print('ENABLED custom_horizon_list:')
+        for conv_id, days in custom_horizon_list:
+            custom_horizon_date = (date.today() - timedelta(days=60)).strftime('%F')
+            print(f'{conv_id} = {days} days (before {custom_horizon_date})')
+            
+    
     if not DRYRUN:
         cur.execute(f'create temporary table horizon (conveyor_id integer, horizon_days integer);')
         for params in custom_horizon_list:
@@ -111,7 +116,7 @@ def general_clean_table(dbname, tablename, pk, ts_field, ts_in_millisec=False, s
     # tables = [ {'dbname': 'conveyor_statistics','tablename':'conveyor_copy_rpc_logic_statistics', 'pk': ('from_conveyor_id','to_conveyor_id','ts','from_node_id'), 'ts_field': 'ts', 'ts_in_millisec': False, 'special_horizon': False},]
     conn = psycopg2.connect(
         host=DBHOST,
-        port=int(DBPORT),
+        port=DBPORT,
         database=dbname,
         user=DBUSER,
         password=DBPASS)
@@ -135,7 +140,8 @@ def general_clean_table(dbname, tablename, pk, ts_field, ts_in_millisec=False, s
 
 
 if __name__ == '__main__':
-    for db in [f"cp{i}" for i in range(10)]:
+    cp_count = int(config.get('main', 'CP_COUNT'))
+    for db in [f"cp{i}" for i in range(cp_count)]:
         clean_cp(db)
 
     tables = [
