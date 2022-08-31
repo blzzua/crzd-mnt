@@ -71,7 +71,7 @@ def clean_cp(dbname):
     if DEBUG:
         print('ENABLED custom_horizon_list:')
         for conv_id, days in custom_horizon_list:
-            custom_horizon_date = (date.today() - timedelta(days=60)).strftime('%F')
+            custom_horizon_date = (date.today() - timedelta(days=days)).strftime('%F')
             print(f'{conv_id} = {days} days (before {custom_horizon_date})')
             
     
